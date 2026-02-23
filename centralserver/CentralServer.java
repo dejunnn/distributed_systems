@@ -1,4 +1,4 @@
-package templatesgiven.centralserver;
+package centralserver;
 
 import centralserver.ICentralServer;
 import common.*;

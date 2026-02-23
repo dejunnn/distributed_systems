@@ -1,4 +1,4 @@
-package templatesgiven.sensor;
+package sensor;
 
 /*
  * Updated on Feb 2025

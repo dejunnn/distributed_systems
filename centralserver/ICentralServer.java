@@ -1,4 +1,4 @@
-package templatesgiven.centralserver;
+package centralserver;
 
 /*
  * Updated on Feb 2025

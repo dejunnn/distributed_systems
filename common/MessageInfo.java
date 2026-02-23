@@ -2,7 +2,7 @@
  *
  * Updated on Feb 2025
  */
-package templatesgiven.common;
+package common;
 
 import java.io.Serializable;
 
