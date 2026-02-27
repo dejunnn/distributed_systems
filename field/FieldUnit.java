@@ -167,17 +167,18 @@ public class FieldUnit implements IFieldUnit {
         continue;
       }
 
+      // Compute and print stats
+      fieldUnit.printStats();
+
       // Compute Averages - call sMovingAverage() on Field Unit object
       System.out.println("===============================");
       System.out.println("[Field Unit] Computing SMAs");
       fieldUnit.sMovingAverage(7);
 
-      // Compute and print stats
-      fieldUnit.printStats();
-
       // Send data to the Central Serve via RMI and wait for incoming transmission again
       System.out.println("[Field Unit] Sending SMAs to RMI");
       fieldUnit.sendAverages();
+      fieldUnit.movingAverages = null;
 
       System.out.println("[Field Unit] Listening on port: " + port);
     }
@@ -246,7 +247,6 @@ public class FieldUnit implements IFieldUnit {
 
     // Now re-initialise data structures for next time
     receivedMessages = new ArrayList<>();
-    movingAverages = null;
     totalExpected = 0;
   }
 }
