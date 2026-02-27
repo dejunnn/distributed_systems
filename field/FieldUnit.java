@@ -249,7 +249,7 @@ public class FieldUnit implements IFieldUnit {
         if (i == total - 1) lastSent = now;
 
         System.out.println(
-            "[Field Unit] Sending SMA "
+            "[Field Unit] Sending message "
                 + (i + 1)
                 + " out of "
                 + total
