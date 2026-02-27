@@ -9,6 +9,9 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,12 +28,18 @@ public class CentralServer extends UnicastRemoteObject implements ICentralServer
 
   private List<MessageInfo> receivedMessages;
   private int totalExpected;
+  private Instant firstReceived;
+  private Instant lastReceived;
+  private static final DateTimeFormatter fmt =
+      DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
   protected CentralServer() throws RemoteException {
     super();
     // Initialise Array receivedMessages
     receivedMessages = new ArrayList<>();
     totalExpected = 0;
+    firstReceived = null;
+    lastReceived = null;
   }
 
   public static void main(String[] args) throws RemoteException {
@@ -59,7 +68,12 @@ public class CentralServer extends UnicastRemoteObject implements ICentralServer
     if (msg.getMessageNum() == 1) {
       receivedMessages = new ArrayList<>();
       totalExpected = msg.getTotalMessages();
+      firstReceived = null;
+      lastReceived = null;
     }
+
+    Instant now = Instant.now();
+    if (firstReceived == null) firstReceived = now;
 
     System.out.println(
         "[Central Server] Received message "
@@ -67,13 +81,15 @@ public class CentralServer extends UnicastRemoteObject implements ICentralServer
             + " out of "
             + msg.getTotalMessages()
             + ". Measure = "
-            + msg.getMessage());
+            + msg.getMessage()
+            + " | time=" + fmt.format(now));
 
     // Save current message
     receivedMessages.add(msg);
 
-    // If done with receiveing prints stats.
+    // If done with receiving, print stats.
     if (receivedMessages.size() >= totalExpected) {
+      lastReceived = now;
       printStats();
     }
   }
@@ -103,5 +119,15 @@ public class CentralServer extends UnicastRemoteObject implements ICentralServer
     // Now re-initialise data structures for next time
     receivedMessages = new ArrayList<>();
     totalExpected = 0;
+
+    if (firstReceived != null && lastReceived != null) {
+      long durationMs = java.time.Duration.between(firstReceived, lastReceived).toMillis();
+      System.out.println("[Central Server] First received: " + fmt.format(firstReceived));
+      System.out.println("[Central Server] Last received : " + fmt.format(lastReceived));
+      System.out.println("[Central Server] Duration      : " + durationMs + " ms");
+    }
+
+    firstReceived = null;
+    lastReceived = null;
   }
 }

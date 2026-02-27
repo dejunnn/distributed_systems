@@ -7,6 +7,9 @@ import common.MessageInfo;
 
 import java.io.IOException;
 import java.net.*;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Random;
 
 /* You can add/change/delete class attributes if you think it appropriate.
@@ -51,16 +54,41 @@ public class Sensor implements ISensor {
 
   @Override
   public void run(int N) throws InterruptedException {
+    DateTimeFormatter fmt =
+        DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
+    Instant firstSent = null;
+    Instant lastSent = null;
+
     // Send N measurements to the destination address and port
     for (int i = 1; i <= N; i++) {
       float measurement = this.getMeasurement();
       MessageInfo msg = new MessageInfo(N, i, measurement);
-      System.out.println(
-          "[Sensor] Sending message " + i + " out of " + N + ". Measure = " + measurement);
 
       // Call sendMessage() to send the msg to destination
       sendMessage(destAddress, destPort, msg);
+
+      Instant now = Instant.now();
+      if (i == 1) firstSent = now;
+      if (i == N) lastSent = now;
+
+      System.out.println(
+          "[Sensor] Sending message "
+              + i
+              + " out of "
+              + N
+              + ". Measure = "
+              + measurement
+              + " | time="
+              + fmt.format(now));
     }
+
+    if (firstSent != null && lastSent != null) {
+      long durationMs = java.time.Duration.between(firstSent, lastSent).toMillis();
+      System.out.println("[Sensor] First sent : " + fmt.format(firstSent));
+      System.out.println("[Sensor] Last sent  : " + fmt.format(lastSent));
+      System.out.println("[Sensor] Duration   : " + durationMs + " ms");
+    }
+
     // Close datagram socket after sending all messages
     datagramSocket.close();
   }

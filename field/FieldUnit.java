@@ -14,6 +14,9 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -80,6 +83,11 @@ public class FieldUnit implements IFieldUnit {
   public void receiveMeasures(int port, int timeout) throws SocketException {
     this.timeout = timeout;
 
+    DateTimeFormatter fmt =
+        DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
+    Instant firstReceived = null;
+    Instant lastReceived = null;
+
     // Create UDP socket and bind to local port 'port'
     DatagramSocket socket = new DatagramSocket(port);
     socket.setSoTimeout(this.timeout);
@@ -98,6 +106,8 @@ public class FieldUnit implements IFieldUnit {
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         socket.receive(packet);
 
+        Instant now = Instant.now();
+
         String received = new String(packet.getData(), 0, packet.getLength()).trim();
         MessageInfo msg = new MessageInfo(received);
 
@@ -106,6 +116,7 @@ public class FieldUnit implements IFieldUnit {
           msgTot = msg.getTotalMessages();
           this.totalExpected = msgTot;
           this.receivedMessages = new ArrayList<>();
+          firstReceived = now;
         }
 
         System.out.println(
@@ -114,13 +125,16 @@ public class FieldUnit implements IFieldUnit {
                 + " out of "
                 + msg.getTotalMessages()
                 + " received. Value = "
-                + msg.getMessage());
+                + msg.getMessage()
+                + " | time="
+                + fmt.format(now));
 
         // Store the message
         addMessage(msg);
 
         // Keep listening UNTIL done with receiving
         if (receivedMessages.size() >= msgTot) {
+          lastReceived = now;
           listen = false;
         }
 
@@ -130,6 +144,13 @@ public class FieldUnit implements IFieldUnit {
       } catch (Exception e) {
         System.err.println("[Field Unit] Error receiving message: " + e.getMessage());
       }
+    }
+
+    if (firstReceived != null && lastReceived != null) {
+      long durationMs = java.time.Duration.between(firstReceived, lastReceived).toMillis();
+      System.out.println("[Field Unit] First received: " + fmt.format(firstReceived));
+      System.out.println("[Field Unit] Last received : " + fmt.format(lastReceived));
+      System.out.println("[Field Unit] Duration      : " + durationMs + " ms");
     }
 
     // Close socket
@@ -202,10 +223,19 @@ public class FieldUnit implements IFieldUnit {
 
   @Override
   public void sendAverages() {
+    if (central_server == null) {
+      System.err.println("[Field Unit] Cannot send averages: not connected to CentralServer.");
+      return;
+    }
     if (movingAverages == null || movingAverages.length == 0) {
       System.err.println("[Field Unit] No averages to send.");
       return;
     }
+
+    DateTimeFormatter fmt =
+        DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
+    Instant firstSent = null;
+    Instant lastSent = null;
     int total = movingAverages.length;
 
     // Attempt to send messages the specified number of times
@@ -213,10 +243,31 @@ public class FieldUnit implements IFieldUnit {
       MessageInfo msg = new MessageInfo(total, i + 1, movingAverages[i]);
       try {
         central_server.receiveMsg(msg);
+
+        Instant now = Instant.now();
+        if (i == 0) firstSent = now;
+        if (i == total - 1) lastSent = now;
+
+        System.out.println(
+            "[Field Unit] Sending SMA "
+                + (i + 1)
+                + " out of "
+                + total
+                + ". Value = "
+                + movingAverages[i]
+                + " | time="
+                + fmt.format(now));
       } catch (RemoteException e) {
         System.err.println(
             "[Field Unit] RMI send error for message " + (i + 1) + ": " + e.getMessage());
       }
+    }
+
+    if (firstSent != null && lastSent != null) {
+      long durationMs = java.time.Duration.between(firstSent, lastSent).toMillis();
+      System.out.println("[Field Unit] First SMA sent: " + fmt.format(firstSent));
+      System.out.println("[Field Unit] Last SMA sent : " + fmt.format(lastSent));
+      System.out.println("[Field Unit] Duration      : " + durationMs + " ms");
     }
   }
 
