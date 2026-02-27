@@ -189,12 +189,13 @@ public class FieldUnit implements IFieldUnit {
       }
 
       // Compute Averages - call sMovingAverage() on Field Unit object
-      System.out.println("===============================");
-      System.out.println("[Field Unit] Computing SMAs");
       fieldUnit.sMovingAverage(7);
 
       // Compute and print stats
       fieldUnit.printStats();
+
+      System.out.println("===============================");
+      System.out.println("[Field Unit] Computing SMAs");
 
       // Send data to the Central Server via RMI and wait for incoming transmission again
       System.out.println("[Field Unit] Sending SMAs to RMI");
