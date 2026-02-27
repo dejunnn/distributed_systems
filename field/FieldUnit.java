@@ -176,7 +176,7 @@ public class FieldUnit implements IFieldUnit {
     while (true) {
       // Wait for incoming transmission
       try {
-        fieldUnit.receiveMeasures(port, 50000);
+        fieldUnit.receiveMeasures(port, 5000);
       } catch (SocketException e) {
         System.err.println("[Field Unit] Socket exception: " + e.getMessage());
         break;
