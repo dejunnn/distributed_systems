@@ -4,7 +4,6 @@ package sensor;
  * Updated on Feb 2025
  */
 import common.MessageInfo;
-import sensor.ISensor;
 
 import java.io.IOException;
 import java.net.*;
@@ -22,30 +21,48 @@ public class Sensor implements ISensor {
   private static final int max_measure = 50;
   private static final int min_measure = 10;
 
-  private DatagramSocket s;
+  private DatagramSocket datagramSocket;
   private byte[] buffer;
 
+  private String destAddress;
+  private int destPort;
+  private int totalMessages;
+
   /* Note: Could you discuss in one line of comment what you think can be
-   * an appropriate size for buffsize?
-   * (Which is used to init DatagramPacket?)
+   * an appropriate size for buffsize? (Which is used to init DatagramPacket?)
+   * buffsize = 2048 bytes is appropriate: MessageInfo serialised as a string
+   * (totalMessages;msgNum;value\n) is well under 100 bytes, so 2048 gives
+   * ample headroom for any reasonable payload without wasting memory.
    */
   private static final int buffsize = 2048;
 
   public Sensor(String address, int port, int totMsg) {
-    /* TODO: Build Sensor Object */
+    // Build Sensor Object
+    this.destAddress = address;
+    this.destPort = port;
+    this.totalMessages = totMsg;
+    this.buffer = new byte[buffsize];
+    try {
+      this.datagramSocket = new DatagramSocket();
+    } catch (SocketException e) {
+      System.err.println("[Sensor] Could not create socket: " + e.getMessage());
+    }
   }
 
   @Override
   public void run(int N) throws InterruptedException {
-    /* TODO: Send N measurements */
+    // Send N measurements to the destination address and port
+    for (int i = 1; i <= N; i++) {
+      float measurement = this.getMeasurement();
+      MessageInfo msg = new MessageInfo(N, i, measurement);
+      System.out.println(
+          "[Sensor] Sending message " + i + " out of " + N + ". Measure = " + measurement);
 
-    /* Hint: You can get ONE measurement by calling
-     *
-     * float measurement = this.getMeasurement();
-     */
-
-    /* TODO: Call sendMessage() to send the msg to destination */
-
+      // Call sendMessage() to send the msg to destination
+      sendMessage(destAddress, destPort, msg);
+    }
+    // Close datagram socket after sending all messages
+    datagramSocket.close();
   }
 
   public static void main(String[] args) {
@@ -59,29 +76,43 @@ public class Sensor implements ISensor {
     int port = Integer.parseInt(args[1]);
     int totMsg = Integer.parseInt(args[2]);
 
-    /* TODO: Call constructor of sensor to build Sensor object*/
+    // Call constructor of sensor to build Sensor object
+    Sensor sensor = new Sensor(address, port, totMsg);
 
-    /* TODO: Use Run to send the messages */
-
+    // Use Run to send the messages and catch any InterruptedException
+    try {
+      sensor.run(totMsg);
+    } catch (InterruptedException e) {
+      System.err.println("[Sensor] Run Interrupted: " + e.getMessage());
+    }
   }
 
   @Override
   public void sendMessage(String address, int port, MessageInfo msg) {
-    String toSend = msg.toString();
+    try {
+      // Build destination address object
+      InetAddress dest = InetAddress.getByName(address);
 
-    /* TODO: Build destination address object */
+      // Build datagram packet to send
+      byte[] data = msg.toString().getBytes();
+      if (data.length > buffer.length) {
+        throw new IOException(
+            "Message size " + data.length + " exceeds buffer size " + buffer.length);
+      }
+      System.arraycopy(data, 0, buffer, 0, data.length);
+      DatagramPacket packet = new DatagramPacket(buffer, data.length, dest, port);
 
-    /* TODO: Build datagram packet to send */
-
-    /* TODO: Send packet */
-
+      // Send packet
+      datagramSocket.send(packet);
+    } catch (IOException e) {
+      System.err.println("[Sensor] Error sending message: " + e.getMessage());
+    }
   }
 
   @Override
   public float getMeasurement() {
     Random r = new Random();
     measurement = r.nextFloat() * (max_measure - min_measure) + min_measure;
-
     return measurement;
   }
 }
